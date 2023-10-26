@@ -289,6 +289,7 @@ void fpm_wave_pcm_24bits(const unsigned int *buffer, size_t size, fpm_audio *aud
     // 0xaa aa aa bb
     // 0xbb bb cc cc
     // 0xcc dd dd dd
+
     tmp            = src[i];                                        // 0xaa aa aa bb
     audio->data[j] = float(tmp & 0xFFFFFF00) / float(2147483648.f); // 0xaa aa aa 00
     tmp <<= 24;                                                     // 0xbb 00 00 00
