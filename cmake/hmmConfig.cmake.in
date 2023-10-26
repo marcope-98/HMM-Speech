@@ -1,0 +1,10 @@
+get_filename_component(HMM_CMAKE_DIR "${CMAKE_CURRENT_LIST_FILE}" PATH)
+include(CMakeFindDependencyMacro)
+
+list(APPEND CMAKE_MODULE_PATH ${HMM_CMAKE_DIR})
+
+if(NOT TARGET hmm::hmm)
+    include("${HMM_CMAKE_DIR}/hmmTargets.cmake")
+endif()
+
+set(HMM_LIBRARIES hmm::hmm)
