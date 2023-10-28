@@ -14,11 +14,39 @@ target_include_directories(${LIBRARY_NAME}
     $<INSTALL_INTERFACE:include>
 )
 
-target_compile_options(${LIBRARY_NAME}
+target_compile_options(
+    ${LIBRARY_NAME}
     INTERFACE
     $<$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:AppleClang>,$<CXX_COMPILER_ID:GNU>>:
     -Wall -Wextra -Wpedantic -O2 -march=native>
 )
+
+set(MIN_EIGEN_VERSION 3.4)
+find_package(Eigen3 ${MIN_EIGEN_VERSION} REQUIRED NO_MODULE)
+
+#[=[
+add_library(${LIBRARY_NAME}
+    STATIC
+    src/Matrix.cpp
+)
+add_library(${LIBRARY_NAME}::${LIBRARY_NAME} ALIAS ${LIBRARY_NAME})
+
+target_include_directories(${LIBRARY_NAME}
+    PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>
+    PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+
+target_compile_options(
+    ${LIBRARY_NAME}
+    PUBLIC
+    $<$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:AppleClang>,$<CXX_COMPILER_ID:GNU>>:
+    -Wall -Wextra -Wpedantic -O2 -march=native>
+)
+#]=]
+target_link_libraries(${LIBRARY_NAME} INTERFACE Eigen3::Eigen)
 
 include(GNUInstallDirs)
 set(INSTALL_CONFIGDIR ${CMAKE_INSTALL_LIBDIR}/cmake/${LIBRARY_NAME})
