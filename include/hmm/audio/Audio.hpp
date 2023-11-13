@@ -40,7 +40,7 @@ namespace hmm
 
   private:
     std::complex<float> *dft(const float *const src, const std::size_t &N) const;
-    std::size_t          clp2(std::size_t x);
+    std::size_t          clp2(std::size_t x) const;
 
     void deallocate_all();
     void reallocate(const std::size_t &size);
