@@ -92,9 +92,8 @@ void fpm_wav_pcm_16bits(fpm_wav_iterator it, fpm_audio *audio);
 void fpm_wav_pcm_24bits(fpm_wav_iterator it, fpm_audio *audio);
 void fpm_wav_pcm_32bits(fpm_wav_iterator it, fpm_audio *audio);
 
-void   fpm_wav_info(const char *filename);
-void   fpm_wav_free(float *data);
-size_t fpm_wav_align(size_t value, size_t bytes);
+void fpm_wav_info(const char *filename);
+void fpm_wav_free(float *data);
 #endif // FPM_WAV_H_
 
 #ifdef FPM_WAV_IMPLEMENTATION
@@ -236,7 +235,8 @@ void fpm_wav_parse_fact_chunk(fpm_wav_iterator it, fpm_audio *audio)
 void fpm_wav_parse_data_chunk(fpm_wav_iterator it, fpm_audio *audio)
 {
   audio->nSamples = it.chunk.size / (audio->fmt.wBitsPerSample >> 3);
-  audio->data     = (float *)malloc(fpm_wav_align(audio->nSamples * sizeof(float), 16));
+  audio->data     = (float *)malloc(audio->nSamples * sizeof(float));
+  memset(audio->data, '0', audio->nSamples * sizeof(float));
 
   switch (audio->fmt.wFormatTag)
   {
@@ -295,11 +295,6 @@ void fpm_wav_free(float *data)
 {
   free(data);
   data = NULL;
-}
-
-size_t fpm_wav_align(size_t value, size_t bytes)
-{
-  return (value + bytes - 1) & ~(bytes - 1);
 }
 
 void fpm_wav_pcm(fpm_wav_iterator it, fpm_audio *audio)
