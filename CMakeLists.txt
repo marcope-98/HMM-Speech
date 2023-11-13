@@ -5,6 +5,7 @@ project(${LIBRARY_NAME} VERSION 1.0.0 LANGUAGES C CXX)
 
 list(INSERT CMAKE_MODULE_PATH 0 ${CMAKE_SOURCE_DIR}/cmake)
 
+#[=[
 add_library(${LIBRARY_NAME} INTERFACE)
 add_library(${LIBRARY_NAME}::${LIBRARY_NAME} ALIAS ${LIBRARY_NAME})
 
@@ -20,14 +21,14 @@ target_compile_options(
     $<$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:AppleClang>,$<CXX_COMPILER_ID:GNU>>:
     -Wall -Wextra -Wpedantic -O2 -march=native>
 )
-
+#]=]
 set(MIN_EIGEN_VERSION 3.4)
 find_package(Eigen3 ${MIN_EIGEN_VERSION} REQUIRED NO_MODULE)
+find_package(R REQUIRED COMPONENTS Rcpp RInside)
 
-#[=[
 add_library(${LIBRARY_NAME}
     STATIC
-    src/Matrix.cpp
+    src/audio/Audio.cpp
 )
 add_library(${LIBRARY_NAME}::${LIBRARY_NAME} ALIAS ${LIBRARY_NAME})
 
@@ -45,8 +46,11 @@ target_compile_options(
     $<$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:AppleClang>,$<CXX_COMPILER_ID:GNU>>:
     -Wall -Wextra -Wpedantic -O2 -march=native>
 )
-#]=]
-target_link_libraries(${LIBRARY_NAME} INTERFACE Eigen3::Eigen)
+target_link_libraries(${LIBRARY_NAME}
+    PRIVATE
+    Eigen3::Eigen
+    R::R
+)
 
 include(GNUInstallDirs)
 set(INSTALL_CONFIGDIR ${CMAKE_INSTALL_LIBDIR}/cmake/${LIBRARY_NAME})
