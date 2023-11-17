@@ -1,17 +1,12 @@
 #ifndef FPM_WAV_H_
 #define FPM_WAV_H_
-#include <assert.h>
-#include <errno.h>
+
 #include <stdint.h>
-#include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
-#include <immintrin.h>
-
-// TODO: proper error handling (improper use of assert)
+// TODO: define preprocessor constants for normalization => avoid magic numbers
 // TODO: set preprocessor macro to enable sse
-// TODO: cmake check compiler support for sse
+// TODO: return matrix with rows = channels and cols = samples per corresponding channel
 
 // clang-format off
 #define FPM_WAV_RIFF 0x46464952 // "RIFF" reversed for big endian
@@ -80,11 +75,11 @@ fpm_wav_iterator fpm_wav_get_chunk(fpm_wav_iterator iter);
 fpm_wav_iterator fpm_wav_get_chunk_header(fpm_wav_iterator it);
 fpm_wav_iterator fpm_wav_init_iterator(const void *buffer, size_t size);
 
-void             fpm_wav_parse(const void *buffer, size_t size, fpm_audio *audio);
-fpm_wav_iterator fpm_wav_parse_header(fpm_wav_iterator it);
-void             fpm_wav_parse_fmt__chunk(fpm_wav_iterator it, fpm_audio *audio);
-void             fpm_wav_parse_fact_chunk(fpm_wav_iterator it, fpm_audio *audio);
-void             fpm_wav_parse_data_chunk(fpm_wav_iterator it, fpm_audio *audio);
+int  fpm_wav_parse(const void *buffer, size_t size, fpm_audio *audio);
+int  fpm_wav_parse_header(fpm_wav_iterator it);
+void fpm_wav_parse_fmt__chunk(fpm_wav_iterator it, fpm_audio *audio);
+void fpm_wav_parse_fact_chunk(fpm_wav_iterator it, fpm_audio *audio);
+void fpm_wav_parse_data_chunk(fpm_wav_iterator it, fpm_audio *audio);
 
 void fpm_wav_pcm(fpm_wav_iterator it, fpm_audio *audio);
 void fpm_wav_pcm_8bits(fpm_wav_iterator it, fpm_audio *audio);
@@ -92,11 +87,19 @@ void fpm_wav_pcm_16bits(fpm_wav_iterator it, fpm_audio *audio);
 void fpm_wav_pcm_24bits(fpm_wav_iterator it, fpm_audio *audio);
 void fpm_wav_pcm_32bits(fpm_wav_iterator it, fpm_audio *audio);
 
-void fpm_wav_info(const char *filename);
+int  fpm_wav_info(const char *filename);
 void fpm_wav_free(float *data);
+
 #endif // FPM_WAV_H_
 
 #ifdef FPM_WAV_IMPLEMENTATION
+
+#include <assert.h>
+#include <errno.h>
+#include <stdio.h>
+#include <string.h>
+
+#include <immintrin.h>
 
 void *fpm_wav_read_file(const char *filename, size_t *size)
 {
@@ -120,7 +123,7 @@ void *fpm_wav_read_file(const char *filename, size_t *size)
   rewind(file);
 
   unused = fread(buffer, 1, fsize, file);
-  assert(unused == (size_t)fsize);
+  (void)unused;
   if (ferror(file)) goto error;
 
   // close file
@@ -137,12 +140,17 @@ error:
 
 float *fpm_wav_load(const char *filename, size_t *samples, size_t *channels, size_t *hz)
 {
-  size_t fsize  = 0;
-  void * buffer = fpm_wav_read_file(filename, &fsize);
-  if (buffer == NULL) return NULL;
-  // parse
+  size_t    fsize = 0;
   fpm_audio audio = {0};
-  fpm_wav_parse(buffer, fsize, &audio);
+  int       res   = 0;
+
+  void *buffer = fpm_wav_read_file(filename, &fsize);
+  if (buffer == NULL) goto error;
+
+  // parse
+  res = fpm_wav_parse(buffer, fsize, &audio);
+  if (res) goto error;
+
   *samples  = audio.nSamples;
   *channels = (size_t)audio.fmt.nChannels;
   *hz       = (size_t)audio.fmt.nSamplesPerSec;
@@ -151,14 +159,22 @@ float *fpm_wav_load(const char *filename, size_t *samples, size_t *channels, siz
   free(buffer);
 
   return audio.data;
+error:
+  if (buffer) free(buffer);
+  return NULL;
 }
 
-void fpm_wav_parse(const void *buffer, size_t size, fpm_audio *audio)
+int fpm_wav_parse(const void *buffer, size_t size, fpm_audio *audio)
 {
-  // parse header
+  // initialize iterator
   fpm_wav_iterator it = fpm_wav_init_iterator(buffer, size);
-  it                  = fpm_wav_parse_header(it);
 
+  // parse header
+  int res = fpm_wav_parse_header(it);
+  if (res == 0) return 1;
+  it.chunk.size += sizeof(fpm_riff_header);
+
+  // parse other chunks
   for (it = fpm_wav_get_chunk(it);
        it.at < it.end;
        it = fpm_wav_get_chunk(it))
@@ -181,6 +197,8 @@ void fpm_wav_parse(const void *buffer, size_t size, fpm_audio *audio)
     }
   }
   assert(it.at == it.end);
+
+  return 0;
 }
 
 fpm_wav_iterator fpm_wav_init_iterator(const void *buffer, size_t size)
@@ -204,15 +222,13 @@ fpm_wav_iterator fpm_wav_get_chunk_header(fpm_wav_iterator it)
   return it;
 }
 
-fpm_wav_iterator fpm_wav_parse_header(fpm_wav_iterator it)
+int fpm_wav_parse_header(fpm_wav_iterator it)
 {
   fpm_riff_header header = *(fpm_riff_header *)(it.at);
-  // TODO: these should not be asserts
-  assert(header.riff == FPM_WAV_RIFF);
-  assert(header.size == (uint32_t)(it.end - it.at) - 8u);
-  assert(header.wave == FPM_WAV_WAVE);
-  it.at += sizeof(fpm_riff_header);
-  return it;
+
+  return (header.riff == FPM_WAV_RIFF) &&
+         (header.size == (uint32_t)(it.end - it.at) - 8u) &&
+         (header.wave == FPM_WAV_WAVE);
 }
 
 void fpm_wav_parse_fmt__chunk(fpm_wav_iterator it, fpm_audio *audio)
@@ -251,17 +267,21 @@ void fpm_wav_parse_data_chunk(fpm_wav_iterator it, fpm_audio *audio)
       printf("Unsupported audio format\n");
       fpm_wav_free(audio->data);
       audio->nSamples = 0;
+      break;
   }
 }
 
-void fpm_wav_info(const char *filename)
+int fpm_wav_info(const char *filename)
 {
-  size_t fsize  = 0;
-  void * buffer = fpm_wav_read_file(filename, &fsize);
-
-  // parse
+  size_t    fsize = 0;
   fpm_audio audio = {0};
-  fpm_wav_parse(buffer, fsize, &audio);
+  int       res;
+
+  void *buffer = fpm_wav_read_file(filename, &fsize);
+  if (buffer == NULL) goto error;
+  // parse
+  res = fpm_wav_parse(buffer, fsize, &audio);
+  if (res) goto error;
 
   switch (audio.fmt.wFormatTag)
   {
@@ -289,6 +309,12 @@ void fpm_wav_info(const char *filename)
   printf("Byte rate:          %d\n", audio.fmt.nAvgBytesPerSec);
   printf("Block align:        %d\n", audio.fmt.nBlockAlign);
   printf("Bits per sample:    %d\n", audio.fmt.wBitsPerSample);
+
+  return 0;
+error:
+  if (buffer) free(buffer);
+  if (audio.data) fpm_wav_free(audio.data);
+  return 1;
 }
 
 void fpm_wav_free(float *data)
@@ -438,3 +464,17 @@ void fpm_wav_pcm_32bits(fpm_wav_iterator it, fpm_audio *audio)
 }
 
 #endif // FPM_WAV_IMPLEMENTATION
+
+/*
+  _mm_cvtepu8_epi32   <smmintrin.h> SSE4.1
+  _mm_cvtepi16_epi32  <smmintrin.h> SSE4.1
+  _mm_shuffle_epi8    <tmmintrin.h> SSSE3
+  _mm_bsrli_si128     <emmintrin.h> SSE2
+  _mm_cvtepi32_ps     <emmintrin.h> SSE2
+  _mm_loadu_si128     <emmintrin.h> SSE2
+  _mm_set_epi32       <emmintrin.h> SSE2
+  _mm_sub_ps          <xmmintrin.h> SSE
+  _mm_store_ps        <immintrin.h> SSE
+  _mm_mul_ps          <xmmintrin.h> SSE
+  _mm_set1_ps         <xmmintrin.h> SSE
+*/
