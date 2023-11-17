@@ -1,9 +1,12 @@
 #include "hmm/audio/Audio.hpp"
+
 #define _USE_MATH_DEFINES
 #include <cmath>
+#include <complex>
 #include <iostream>
 
-#include "hmm/graphics.hpp"
+#include "hmm/audio/fft.hpp"
+#include "hmm/io/graphics.hpp"
 
 #ifndef FPM_WAV_IMPLEMENTATION
 #define FPM_WAV_IMPLEMENTATION
@@ -12,21 +15,6 @@
 
 hmm::Audio::Audio(const char *filename) : Audio()
 {
-#if 0
-  this->d_channels           = 1;
-  this->d_sampling_frequency = 1000;
-  this->d_samples            = 1500;
-  this->p_data               = new float[this->d_samples]();
-  float t                    = 0.f;
-  float dt                   = 1.f / float(this->d_sampling_frequency);
-  for (std::size_t i = 0; i < this->d_samples; ++i)
-  {
-    this->p_data[i] = 0.8f +
-                      0.7f * sinf(2.f * M_PI * 50.f * t) +
-                      1.f * sinf(2.f * M_PI * 120.f * t);
-    t += dt;
-  }
-#else
   this->p_data = fpm_wav_load(filename,
                               &this->d_samples,
                               &this->d_channels,
@@ -36,16 +24,18 @@ hmm::Audio::Audio(const char *filename) : Audio()
     std::cerr << "[ERROR] could not read filename " << filename << "\n";
     exit(1);
   }
-#endif
 }
 
 hmm::Audio &hmm::Audio::operator=(const Audio &other)
 {
-  if (this->capacity() != other.capacity()) this->reallocate(other.capacity());
+  if (this->size() != other.size()) this->reallocate(other.size());
   this->d_samples            = other.d_samples;
   this->d_channels           = other.d_channels;
   this->d_sampling_frequency = other.d_sampling_frequency;
-  simd::copy(other.p_data, this->size(), this->p_data);
+
+  // TODO: optimize
+  for (std::size_t i = 0; i < this->size(); ++i)
+    this->p_data[i] = other.p_data[i];
   return *this;
 }
 
@@ -62,6 +52,7 @@ hmm::Audio::~Audio() { this->deallocate_all(); }
 
 void hmm::Audio::preemphesis()
 {
+  // TODO: optimize
   for (std::size_t i = this->d_samples - 1; i > 0; --i)
     this->p_data[i] -= 0.95f * this->p_data[i - 1];
 }
@@ -74,10 +65,10 @@ void hmm::Audio::deallocate_all()
   this->d_sampling_frequency = 0;
 }
 
-void hmm::Audio::reallocate(const std::size_t &capacity)
+void hmm::Audio::reallocate(const std::size_t &size)
 {
   this->deallocate_all();
-  this->p_data = new float[capacity]();
+  this->p_data = new float[size]();
 }
 
 void hmm::Audio::plot() const
@@ -99,83 +90,124 @@ void hmm::Audio::plot() const
   delete[] time;
 }
 
-// TODO: move this in a separate file
-std::size_t hmm::Audio::clp2(std::size_t x) const
+// TODO: consider making this a templated function to accept a lambda instead
+void hmm::Audio::fft_plot(float (*window)(const std::size_t &, const std::size_t &)) const
 {
-  x -= 1;
-  x |= x >> 1;
-  x |= x >> 2;
-  x |= x >> 4;
-  x |= x >> 8;
-  x |= x >> 16;
-  x |= x >> 32;
-  return x + 1;
-}
-
-// TODO: this should be in a separate header
-void hmm::Audio::fft_plot(float (*window)(float, float)) const
-{
-  // NOTE: zero padding
-  std::size_t N_padded = this->clp2(this->d_samples); // next power of 2
-  float *     src      = new float[N_padded]();
+  // next power of 2
+  const std::size_t Nfft = fft::clp2(this->d_samples);
+  // zero pad to next power of 2
+  float *src = fft::zero_padding(this->p_data, this->d_samples, Nfft);
+  // remove mean of signal:
+  /* 
+  NOTE: in reality the quantity to subtract is (mean(src.*window)/mean(window))
+        only under these conditions the fft[0] is exactly zero
+        still this is a fair approximation
+  */
+  float mean = fft::mean(src, this->d_samples);
+  // TODO: to optimize
   for (std::size_t i = 0; i < this->d_samples; ++i)
-    src[i] = this->p_data[i];
+    src[i] -= mean;
 
-  // NOTE: Windowing + computation of amplitude correcting factor
-  // TODO: make it a separate function call
-  float Aw = 0.f; // Amplitude correcting factor
-  for (std::size_t i = 0; i < this->d_samples; ++i)
-  {
-    // TODO: value is too generic, find a better naming
-    float value = window(float(i), float(this->d_samples - 1));
-    Aw += value;
-    src[i] *= value;
-  }
-  Aw = 1.f / Aw;
+  // apply window to signal
+  fft::apply_window(src, this->d_samples, window);
+  // compute amplitude correction factor
+  float Aw = fft::amplitude_cf(window, this->d_samples);
+  Aw /= float(this->d_samples);
 
-  // NOTE: Discrete Fourier Transform
-  // TODO: separate this in different translation unit
-  // TODO: consider including window() as input parameter
-  std::complex<float> *temp = this->dft(src, this->d_samples);
-
+  // Cooley-Tukey fft algorithm
+  std::complex<float> *temp = fft::cooley_tukey(src, Nfft);
   delete[] src;
 
   // plot dft magnitude
-  const std::size_t half_spectrum = N_padded / 2 + 1;
+  const std::size_t half_spectrum = Nfft / 2 + 1;
   float *           freq          = new float[half_spectrum]();
   float *           magnitude     = new float[half_spectrum]();
-  const float       delta         = float(this->d_sampling_frequency) / float(N_padded);
+  const float       delta         = float(this->d_sampling_frequency) / float(Nfft);
+  float             frequency     = 0.f;
 
-  // TODO: instead of doing evil bool->float conversion consider initializing the first element and loop trough the rest
-  for (std::size_t i = 0; i < half_spectrum; ++i)
+  freq[0]      = frequency;
+  magnitude[0] = Aw * std::abs(temp[0]);
+  for (std::size_t i = 1; i < half_spectrum; ++i)
   {
-    freq[i] = float(i) * delta;
-    // NOTE: (2.f - float(i == 0)) => double every magnitude except for the mean
-    magnitude[i] = Aw * (2.f - float(i == 0)) * std::abs(temp[i]);
+    frequency += delta;
+    freq[i]      = frequency;
+    magnitude[i] = 2.f * Aw * std::abs(temp[i]);
   }
   delete[] temp;
 
   graphics::open_window();
   graphics::plot(freq, magnitude, half_spectrum, "Frequency [Hz]", "Magnitude [-]");
   graphics::wait();
+
   delete[] freq;
   delete[] magnitude;
 }
 
-// TODO: this should be in a separate header
-std::complex<float> *hmm::Audio::dft(const float *const src, const std::size_t &N) const
+void hmm::Audio::spectrogram(float (*window)(const std::size_t &, const std::size_t &)) const
 {
-  const std::size_t    N_padded = this->clp2(N);
-  std::complex<float> *answer   = new std::complex<float>[N_padded]();
+  /*
+  To be precise assuming 50% overlap I need: 
+   - a number of samples is at least window size
+   - a number of samples multiple of overlap
+  */
+  const std::size_t window_length = 256;
+  const std::size_t overlap       = window_length / 2; // 50% overlap
+  const std::size_t Nfft          = fft::round_up_to_multiple_of(this->d_samples, window_length);
+  float *           src           = fft::zero_padding(this->p_data, this->d_samples, Nfft);
 
-  // exp(- i 2 pi k n / N)
-  const float constant = -2.f * M_PI / float(N);
-  for (std::size_t k = 0; k < N_padded; ++k)
+  const std::size_t    blocks = (Nfft / overlap) - 1; // NOTE: This assumes 50% overlap
+  std::complex<float> *spectr = new std::complex<float>[window_length * blocks]();
+  float *              tmp    = new float[window_length]();
+
+  std::size_t offset = 0;
+  for (std::size_t block = 0; block < blocks; ++block)
   {
-    float factor = constant * float(k);
-    // answer[k]    = sum(0.f, 0.f);
-    for (std::size_t n = 0; n < N; ++n)
-      answer[k] += src[n] * std::exp(factor * n * 1.if);
+    // copy src to tmp
+    for (std::size_t i = 0; i < window_length; ++i)
+      tmp[i] = src[i + offset];
+    // apply window to tmp
+    fft::apply_window(tmp, window_length, window);
+    // compute fft on tmp
+    fft::cooley_tukey(tmp, window_length, spectr + block * window_length);
+    offset += overlap;
   }
-  return answer;
+  delete[] tmp;
+  delete[] src;
+
+  // compute spectrogram + transpose
+  const std::size_t half_spectrum = window_length / 2 + 1;
+  float *           z             = new float[half_spectrum * blocks]();
+  for (std::size_t block = 0; block < blocks; ++block)
+  {
+    z[block] = 20.f * log10f(std::abs(spectr[block * window_length]));
+    for (std::size_t i = 1; i < half_spectrum; ++i)
+    {
+      std::size_t index_src = i + block * window_length;
+      std::size_t index_dst = i * blocks + block;
+      z[index_dst]          = 20.f * log10f(2.f * std::abs(spectr[index_src]));
+    }
+  }
+  delete[] spectr;
+
+  float *x = new float[blocks]();
+  for (std::size_t i = 0; i < blocks; ++i)
+    x[i] = float(i);
+
+  float *     y         = new float[half_spectrum]();
+  const float delta     = float(this->d_sampling_frequency) / float(window_length);
+  float       frequency = 0.f;
+  for (std::size_t i = 0; i < half_spectrum; ++i)
+  {
+    y[i] = frequency;
+    frequency += delta;
+  }
+
+  graphics::open_window();
+  graphics::matrix(x, y, z,
+                   half_spectrum, blocks,
+                   "Time [Block #]", "Frequency [Hz]");
+  graphics::wait();
+  delete[] x;
+  delete[] y;
+  delete[] z;
 }

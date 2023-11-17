@@ -5,7 +5,6 @@
 #include <cstdint>
 #include <utility>
 
-using namespace std::complex_literals;
 #include "hmm/simd.hpp"
 
 namespace hmm
@@ -25,7 +24,6 @@ namespace hmm
 
   public:
     std::size_t size() const { return this->d_samples * this->d_channels; }
-    std::size_t capacity() const { return simd::align(this->size(), 4); }
 
     float at(const std::size_t &sample, const std::size_t &channel) const
     {
@@ -36,12 +34,10 @@ namespace hmm
 
     void preemphesis();
     void plot() const;
-    void fft_plot(float (*window)(float, float)) const;
+    void fft_plot(float (*window)(const std::size_t &, const std::size_t &)) const;
+    void spectrogram(float (*window)(const std::size_t &, const std::size_t &)) const;
 
   private:
-    std::complex<float> *dft(const float *const src, const std::size_t &N) const;
-    std::size_t          clp2(std::size_t x) const;
-
     void deallocate_all();
     void reallocate(const std::size_t &size);
 
