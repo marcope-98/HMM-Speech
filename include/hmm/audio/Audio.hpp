@@ -1,11 +1,10 @@
 #ifndef HMM_AUDIO_AUDIO_HPP_
 #define HMM_AUDIO_AUDIO_HPP_
+
 #include <cassert>
 #include <complex>
 #include <cstdint>
 #include <utility>
-
-#include "hmm/simd.hpp"
 
 namespace hmm
 {
