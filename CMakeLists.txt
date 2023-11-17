@@ -5,23 +5,6 @@ project(${LIBRARY_NAME} VERSION 1.0.0 LANGUAGES C CXX)
 
 list(INSERT CMAKE_MODULE_PATH 0 ${CMAKE_SOURCE_DIR}/cmake)
 
-#[=[
-add_library(${LIBRARY_NAME} INTERFACE)
-add_library(${LIBRARY_NAME}::${LIBRARY_NAME} ALIAS ${LIBRARY_NAME})
-
-target_include_directories(${LIBRARY_NAME}
-    INTERFACE
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-    $<INSTALL_INTERFACE:include>
-)
-
-target_compile_options(
-    ${LIBRARY_NAME}
-    INTERFACE
-    $<$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:AppleClang>,$<CXX_COMPILER_ID:GNU>>:
-    -Wall -Wextra -Wpedantic -O2 -march=native>
-)
-#]=]
 set(MIN_EIGEN_VERSION 3.4)
 find_package(Eigen3 ${MIN_EIGEN_VERSION} REQUIRED NO_MODULE)
 find_package(R REQUIRED COMPONENTS Rcpp RInside)
@@ -29,6 +12,7 @@ find_package(R REQUIRED COMPONENTS Rcpp RInside)
 add_library(${LIBRARY_NAME}
     STATIC
     src/audio/Audio.cpp
+    src/io/graphics.cpp
 )
 add_library(${LIBRARY_NAME}::${LIBRARY_NAME} ALIAS ${LIBRARY_NAME})
 
