@@ -15,6 +15,19 @@
 
 hmm::Audio::Audio(const char *filename) : Audio()
 {
+#if 1
+  this->d_channels           = 1;
+  this->d_sampling_frequency = 1000;
+  this->d_samples            = 1500;
+  this->p_data               = new float[this->d_samples];
+  const float dt             = 1.f / float(this->d_sampling_frequency);
+  float       t              = 0.f;
+  for (std::size_t i = 0; i < this->d_samples; ++i)
+  {
+    this->p_data[i] = 0.8f + 0.7f * sinf(2.f * M_PI * 50.f * t) + sinf(2.f * M_PI * 120.f * t);
+    t += dt;
+  }
+#else
   this->p_data = fpm_wav_load(filename,
                               &this->d_samples,
                               &this->d_channels,
@@ -24,6 +37,7 @@ hmm::Audio::Audio(const char *filename) : Audio()
     std::cerr << "[ERROR] could not read filename " << filename << "\n";
     exit(1);
   }
+#endif
 }
 
 hmm::Audio &hmm::Audio::operator=(const Audio &other)
@@ -52,9 +66,7 @@ hmm::Audio::~Audio() { this->deallocate_all(); }
 
 void hmm::Audio::preemphesis()
 {
-  // TODO: optimize
-  for (std::size_t i = this->d_samples - 1; i > 0; --i)
-    this->p_data[i] -= 0.95f * this->p_data[i - 1];
+  fft::preemphesis(this->p_data, this->d_samples);
 }
 
 void hmm::Audio::deallocate_all()
@@ -160,6 +172,8 @@ void hmm::Audio::spectrogram(float (*window)(const std::size_t &, const std::siz
   float *              tmp    = new float[window_length]();
 
   std::size_t offset = 0;
+  const float Aw     = fft::amplitude_cf(window, window_length) / float(window_length);
+
   for (std::size_t block = 0; block < blocks; ++block)
   {
     // copy src to tmp
@@ -179,19 +193,24 @@ void hmm::Audio::spectrogram(float (*window)(const std::size_t &, const std::siz
   float *           z             = new float[half_spectrum * blocks]();
   for (std::size_t block = 0; block < blocks; ++block)
   {
-    z[block] = 20.f * log10f(std::abs(spectr[block * window_length]));
+    z[block] = 20.f * log10f(Aw * std::abs(spectr[block * window_length]));
     for (std::size_t i = 1; i < half_spectrum; ++i)
     {
       std::size_t index_src = i + block * window_length;
       std::size_t index_dst = i * blocks + block;
-      z[index_dst]          = 20.f * log10f(2.f * std::abs(spectr[index_src]));
+      z[index_dst]          = 20.f * log10f(2.f * Aw * std::abs(spectr[index_src]));
     }
   }
   delete[] spectr;
 
-  float *x = new float[blocks]();
+  float *     x  = new float[blocks]();
+  const float dt = float(this->d_samples) / float(blocks * this->d_sampling_frequency);
+  float       t  = dt * 0.5f;
   for (std::size_t i = 0; i < blocks; ++i)
-    x[i] = float(i);
+  {
+    x[i] = t;
+    t += dt;
+  }
 
   float *     y         = new float[half_spectrum]();
   const float delta     = float(this->d_sampling_frequency) / float(window_length);

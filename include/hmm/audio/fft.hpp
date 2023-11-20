@@ -12,6 +12,12 @@ namespace hmm
 {
   struct fft
   {
+    static void preemphesis(float *const src, const std::size_t &N)
+    {
+      for (std::size_t i = N - 1; i > 0; --i)
+        src[i] -= 0.95f * src[i - 1];
+    }
+
     static float *zero_padding(const float *const src, const std::size_t &prevsize, const size_t &size)
     {
       float *dst = new float[size]();
