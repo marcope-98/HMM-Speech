@@ -32,7 +32,11 @@ if(NOT GTEST_FOUND)
     )
 endif()
 
-add_executable(hmm_test src/main.cpp)
+add_executable(hmm_test
+    src/hmmintrin-test.cpp
+    src/fft-test.cpp
+    src/main.cpp)
+
 target_link_libraries(hmm_test gtest hmm::hmm)
 
 add_test(
