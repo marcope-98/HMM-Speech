@@ -8,6 +8,11 @@ namespace hmm
 {
   struct fops
   {
+  private:
+    inline static float max(const float &a, const float &b) { return a > b ? a : b; }
+    inline static float min(const float &a, const float &b) { return a < b ? a : b; }
+
+  public:
     inline static std::uint32_t f32_to_hex(const float &f32) { return *(std::uint32_t *)&f32; }
     inline static float         hex_to_f32(const std::uint32_t &hex) { return *(float *)&hex; }
 
@@ -16,9 +21,6 @@ namespace hmm
       std::uint32_t u32 = f32_to_hex(value) & 0x7FFFFFFFU;
       return hex_to_f32(u32);
     }
-
-    inline static float max(const float &a, const float &b) { return a > b ? a : b; }
-    inline static float min(const float &a, const float &b) { return a < b ? a : b; }
 
     inline static bool cmpgt(const float &a, const float &b)
     {
