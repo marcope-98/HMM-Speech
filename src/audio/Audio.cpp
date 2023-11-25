@@ -15,7 +15,7 @@
 
 hmm::Audio::Audio(const char *filename) : Audio()
 {
-#if 1
+#if 0
   this->d_channels           = 1;
   this->d_sampling_frequency = 1000;
   this->d_samples            = 1500;
@@ -127,8 +127,13 @@ void hmm::Audio::fft_plot(float (*window)(const std::size_t &, const std::size_t
   Aw /= float(this->d_samples);
 
   // Cooley-Tukey fft algorithm
-  std::complex<float> *temp = fft::cooley_tukey(src, Nfft);
+  std::complex<float> *input = new std::complex<float>[Nfft];
+  for (std::size_t i = 0; i < Nfft; ++i)
+    input[i] = src[i];
   delete[] src;
+
+  std::complex<float> *temp = fft::cooley_tukey(input, Nfft);
+  delete[] input;
 
   // plot dft magnitude
   const std::size_t half_spectrum = Nfft / 2 + 1;
@@ -169,23 +174,27 @@ void hmm::Audio::spectrogram(float (*window)(const std::size_t &, const std::siz
 
   const std::size_t    blocks = (Nfft / overlap) - 1; // NOTE: This assumes 50% overlap
   std::complex<float> *spectr = new std::complex<float>[window_length * blocks]();
-  float *              tmp    = new float[window_length]();
+  std::complex<float> *tmp    = new std::complex<float>[window_length]();
 
   std::size_t offset = 0;
   const float Aw     = fft::amplitude_cf(window, window_length) / float(window_length);
+  float *     backup = new float[window_length];
 
   for (std::size_t block = 0; block < blocks; ++block)
   {
     // copy src to tmp
     for (std::size_t i = 0; i < window_length; ++i)
-      tmp[i] = src[i + offset];
+      backup[i] = src[i + offset];
     // apply window to tmp
-    fft::apply_window(tmp, window_length, window);
+    fft::apply_window(backup, window_length, window);
+    for (std::size_t i = 0; i < window_length; ++i)
+      tmp[i] = backup[i];
     // compute fft on tmp
     fft::cooley_tukey(tmp, window_length, spectr + block * window_length);
     offset += overlap;
   }
   delete[] tmp;
+  delete[] backup;
   delete[] src;
 
   // compute spectrogram + transpose

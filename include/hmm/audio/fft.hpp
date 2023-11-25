@@ -59,7 +59,7 @@ namespace hmm
       return sum / float(N);
     }
 
-    static std::complex<float> *cooley_tukey(const float *const src, const std::size_t &Nfft,
+    static std::complex<float> *cooley_tukey(const std::complex<float> *const src, const std::size_t &Nfft,
                                              std::complex<float> *out = nullptr)
     {
       std::complex<float> *res{nullptr};
@@ -118,7 +118,7 @@ namespace hmm
       return res;
     }
 
-    static std::complex<float> *dft(const float *const src, const std::size_t &Nfft, std::complex<float> *out = nullptr)
+    static std::complex<float> *dft(const std::complex<float> *const src, const std::size_t &Nfft, std::complex<float> *out = nullptr)
     {
       std::complex<float> *res;
       // NOTE: this function assumes that src has at least Nfft elements
@@ -131,7 +131,7 @@ namespace hmm
       {
         float factor = constant * float(k);
         for (std::size_t n = 0; n < Nfft; ++n)
-          res[k] += src[n] * std::exp(factor * n * 1.if);
+          res[k] += src[n] * std::exp(factor * float(n) * 1.if);
       }
       return res;
     }
