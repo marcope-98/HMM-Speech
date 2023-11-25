@@ -10,38 +10,28 @@ using namespace std::complex_literals;
 
 struct fft_test
 {
-  static float ones(const std::size_t &n, const std::size_t &N)
-  {
-    (void)sizeof(n);
-    (void)sizeof(N);
-    return 1.f;
-  }
+  static float sign(const float &value) { return value > 0.f ? 1.f : -1.f; }
 
-  static float zeros(const std::size_t &n, const std::size_t &N)
-  {
-    (void)sizeof(n);
-    (void)sizeof(N);
-    return 0.f;
-  }
-
-  static float alternate(const std::size_t &n, const std::size_t &N)
+  static std::complex<float> impulse_response(const std::size_t &n, const std::size_t &N)
   {
     (void)sizeof(N);
-    return (n % 2 == 0) ? 1.f : -1.f;
+    return float(n==1);
   }
 
-  static float cosine1(const std::size_t &n, const std::size_t &N)
+  static std::complex<float> complex_sinusoid(const std::size_t &n, const std::size_t &N)
   {
-    return cosf(8.f * 2.f * M_PI * float(n) / float(N));
+    const float arg = 2.f * M_PI * float(n) / float(N);
+    return cosf(arg) + sinf(arg) * 1.if;
   }
 
-  static float cosine2(const std::size_t &n, const std::size_t &N)
+  static std::complex<float> rectangle(const std::size_t &n, const std::size_t &N)
   {
-    return cosf((43.f / 7.f) * 2.f * M_PI * float(n) / float(N));
+    const float arg = 2.f * M_PI * float(n) / float(N);
+    return sign(cosf(arg)) + sign(sinf(arg)) * 1.if;
   }
 
-  static void fill(float *const src, const std::size_t &Nfft,
-                   float (*func)(const std::size_t &, const std::size_t &))
+  static void fill(std::complex<float> *const src, const std::size_t &Nfft,
+                   std::complex<float> (*func)(const std::size_t &, const std::size_t &))
   {
     for (std::size_t i = 0; i < Nfft; ++i)
       src[i] = func(i, Nfft);

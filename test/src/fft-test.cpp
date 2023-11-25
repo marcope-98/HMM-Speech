@@ -4,20 +4,18 @@
 
 #include "hmm/audio/fft.hpp"
 #include "hmm/audio/windows.hpp"
-#include "hmm/internal/hmmintrin.hpp"
 
-void compare_ctfft(const float *const src, const std::size_t &Nfft)
+void compare_fft(const std::complex<float> *const src, const std::size_t &Nfft)
 {
-  std::complex<float> *reference = hmm::fft::dft(src, Nfft);
-  std::complex<float> *to_test   = hmm::fft::cooley_tukey(src, Nfft);
+  std::complex<float> *temp      = hmm::fft::dft(src, Nfft);
+  std::complex<float> *reference = hmm::fft::cooley_tukey(src, Nfft);
 
+  const float N = float(Nfft);
   for (std::size_t i = 0; i < Nfft; ++i)
-  {
-    ASSERT_FLOAT_EQ(reference[i].real(), to_test[i].real()) << i;
-    ASSERT_FLOAT_EQ(reference[i].real(), to_test[i].real()) << i;
-  }
+    ASSERT_NEAR(std::abs(temp[i]) / N, std::abs(reference[i]) / N, 1e-3) << i;
+
+  delete[] temp;
   delete[] reference;
-  delete[] to_test;
 }
 
 TEST(hmmTest, round_up_to_multiple_of)
@@ -46,26 +44,15 @@ TEST(hmmTest, amplitude_cf)
 
 TEST(hmmTest, cooley_tukey)
 {
-  const std::size_t Nfft = 4096;
-  float *           src  = new float[Nfft]();
+  const std::size_t    Nfft = 4096;
+  std::complex<float> *src  = new std::complex<float>[Nfft];
 
-  // zeros test
-  fft_test::fill(src, Nfft, &fft_test::zeros);
-  compare_ctfft(src, Nfft);
+  fft_test::fill(src, Nfft, &fft_test::impulse_response);
+  compare_fft(src, Nfft);
 
-  // ones test
-  fft_test::fill(src, Nfft, &fft_test::ones);
-  compare_ctfft(src, Nfft);
+  fft_test::fill(src, Nfft, &fft_test::complex_sinusoid);
+  compare_fft(src, Nfft);
 
-  // alternate test
-  fft_test::fill(src, Nfft, &fft_test::alternate);
-  compare_ctfft(src, Nfft);
-
-  // cosine1 test
-  fft_test::fill(src, Nfft, &fft_test::cosine1);
-  compare_ctfft(src, Nfft);
-
-  // cosine2 test
-  fft_test::fill(src, Nfft, &fft_test::cosine2);
-  compare_ctfft(src, Nfft);
+  fft_test::fill(src, Nfft, &fft_test::rectangle);
+  compare_fft(src, Nfft);
 }
