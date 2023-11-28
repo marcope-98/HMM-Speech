@@ -31,7 +31,7 @@ namespace hmm
     }
 
     void plot() const;
-    void fft_plot() const;
+    void fft() const;
     void spectrogram() const;
 
   private:

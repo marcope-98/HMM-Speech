@@ -12,8 +12,6 @@
 #endif
 #include "hmm/io/graphics.hpp"
 
-// hmm/audio
-#include "hmm/audio/fft.hpp"
 // hmm/internal
 #include "hmm/internal/DSP.hpp"
 #include "hmm/internal/FFT.hpp"
@@ -98,8 +96,7 @@ void hmm::Audio::plot() const
   delete[] time;
 }
 
-// TODO: consider making this a templated function to accept a lambda instead
-void hmm::Audio::fft_plot() const
+void hmm::Audio::fft() const
 {
   Ptr ptr;
   ptr.data     = malloc(this->d_samples * sizeof(float));
@@ -140,11 +137,11 @@ void hmm::Audio::fft_plot() const
 
 void hmm::Audio::spectrogram() const
 {
-  const std::size_t window_length = 256;                                                          // NOTE: Length of each time block
-  const std::size_t overlap       = window_length / 2;                                            // NOTE: 50% overlap
-  const std::size_t Nfft          = fft::round_up_to_multiple_of(this->d_samples, window_length); // NOTE: Need to do this manually
-  const std::size_t blocks        = (Nfft / overlap) - 1;                                         // NOTE: this assumes 50% overlap
-  const float       Aw            = Hann::correct(window_length) / float(window_length);          // NOTE: Hann window amplitude correction factor
+  const std::size_t window_length = 256;                                                            // NOTE: Length of each time block
+  const std::size_t overlap       = window_length / 2;                                              // NOTE: 50% overlap
+  const std::size_t Nfft          = utils::round_up_to_multiple_of(this->d_samples, window_length); // NOTE: Need to do this manually
+  const std::size_t blocks        = (Nfft / overlap) - 1;                                           // NOTE: this assumes 50% overlap
+  const float       Aw            = Hann::correct(window_length) / float(window_length);            // NOTE: Hann window amplitude correction factor
 
   // Initialize pipeline: Hann -> ToComplex -> FFT -> Magnitude
   Pipeline<Hann, ToComplex, CooleyTukey, Magnitude> pipeline;

@@ -52,12 +52,14 @@ namespace hmm
       }
 
       // reallocate
-      void *temp = calloc(size, sizeof(float));
+      void *temp = malloc(size * sizeof(float));
 
       // copy
       float *dst = (float *)temp;
       for (std::size_t i = 0; i < p.size; ++i)
         dst[i] = src[i];
+      for (std::size_t i = p.size; i < size; ++i)
+        dst[i] = 0.f;
 
       // swap
       std::swap(temp, p.data);

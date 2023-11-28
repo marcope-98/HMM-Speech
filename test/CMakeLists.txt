@@ -34,10 +34,10 @@ endif()
 
 add_executable(hmm_test
     src/hmmintrin-test.cpp
-
-    # src/fft-test.cpp
+    src/utils-test.cpp
     src/DSP-test.cpp
     src/FFT-test.cpp
+    src/Windows-test.cpp
     src/main.cpp)
 
 target_link_libraries(hmm_test gtest hmm::hmm)
