@@ -112,7 +112,7 @@ void hmm::Audio::fft() const
   const float Aw = Hann::correct(ptr.size) / float(ptr.size);
 
   // MeanRemover -> Hann -> ZeroPadding -> ToComplex -> CooleyTukey -> Magnitude
-  Pipeline<Preemphesis, MeanRemover, Hann, ZeroPadding, ToComplex, CooleyTukey, Magnitude> pipeline;
+  Pipeline<MeanRemover, Hann, ZeroPadding, ToComplex, CooleyTukey, Magnitude> pipeline;
   // Execute Pipeline
   ptr = pipeline.execute(ptr);
 
