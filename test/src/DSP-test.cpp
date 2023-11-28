@@ -11,13 +11,11 @@
 TEST(hmmTest, MeanRemover)
 {
   // initialize
-  hmm::Ptr                        input;
   const std::size_t               size = 1000;
   hmm::Pipeline<hmm::MeanRemover> pipeline;
-  input.data     = malloc(size * sizeof(float));
-  input.size     = size;
-  input.capacity = size * sizeof(float);
-  float *src     = (float *)input.data;
+  hmm::Ptr                        input;
+  input.allocate<float>(size);
+  float *src = input.cast<float>();
 
   // create sinewave for tests later
   float *     sinewave = new float[size];
@@ -51,26 +49,25 @@ TEST(hmmTest, MeanRemover)
     ASSERT_NEAR(src[i], sinewave[i], 1e-4);
 
   // clean up
-  free(input.data);
+  input.deallocate();
   delete[] sinewave;
 }
 
 TEST(hmmTest, ZeroPadding)
 {
   // initialize
-  hmm::Ptr                        input;
   const std::size_t               size = 1000;
   hmm::Pipeline<hmm::ZeroPadding> pipeline;
-  input.data           = malloc(size * sizeof(float));
-  input.size           = size;
-  input.capacity       = size * sizeof(float);
-  float *     src      = (float *)input.data;
+  hmm::Ptr                        input;
+  input.allocate<float>(size);
+  float *src = input.cast<float>();
+
   const float constant = 20.f;
   for (std::size_t i = 0; i < size; ++i)
     src[i] = constant;
   input = pipeline.execute(input);
 
-  src = (float *)input.data;
+  src = input.cast<float>();
 
   ASSERT_EQ(input.size, 1024);
   ASSERT_EQ(input.capacity, 1024 * sizeof(float));
@@ -89,12 +86,12 @@ TEST(hmmTest, ZeroPadding)
   input      = pipeline.execute(input);
   ASSERT_EQ(input.size, 1024);
   ASSERT_EQ(input.capacity, 1024 * sizeof(float));
-  ASSERT_TRUE((float *)(input.data) == src);
+  ASSERT_TRUE(input.cast<float>() == src);
   for (std::size_t i = 0; i < size; ++i)
     ASSERT_FLOAT_EQ(src[i], constant);
   for (std::size_t i = size; i < input.size; ++i)
     ASSERT_FLOAT_EQ(src[i], 0.f);
 
   // clean up
-  free(input.data);
+  input.deallocate();
 }

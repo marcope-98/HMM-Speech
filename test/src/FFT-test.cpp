@@ -8,18 +8,19 @@
 
 TEST(hmmTest, ToComplex)
 {
-  hmm::Ptr                      ptr;
-  hmm::Pipeline<hmm::ToComplex> pipeline;
   const std::size_t             size = 1000;
-  ptr.size                           = size;
-  ptr.data                           = malloc(size * sizeof(float));
+  hmm::Pipeline<hmm::ToComplex> pipeline;
+  hmm::Ptr                      ptr;
+  ptr.allocate<float>(size);
 
-  float *src = (float *)ptr.data;
+  float *src = ptr.cast<float>();
   for (std::size_t i = 0; i < size; ++i)
     src[i] = 20.f;
 
-  ptr                       = pipeline.execute(ptr);
-  std::complex<float> *temp = (std::complex<float> *)ptr.data;
+  ptr = pipeline.execute(ptr);
+  ASSERT_EQ(ptr.size, 1000);
+  ASSERT_EQ(ptr.capacity, 1000 * sizeof(std::complex<float>));
+  std::complex<float> *temp = ptr.cast<std::complex<float>>();
   for (std::size_t i = 0; i < size; ++i)
   {
     ASSERT_FLOAT_EQ(temp[i].real(), 20.f);
@@ -27,24 +28,23 @@ TEST(hmmTest, ToComplex)
   }
 
   // ToComplex no allocation
-  src = (float *)ptr.data;
+  src = ptr.cast<float>();
   for (std::size_t i = 0; i < ptr.size; ++i)
     src[i] = 0.f;
   for (std::size_t i = 0; i < size; ++i)
     src[i] = 20.f;
 
   ptr  = pipeline.execute(ptr);
-  temp = (std::complex<float> *)ptr.data;
+  temp = ptr.cast<std::complex<float>>();
   ASSERT_EQ(ptr.size, 1000);
   ASSERT_EQ(ptr.capacity, 1000 * sizeof(std::complex<float>));
-  ASSERT_TRUE((float *)(ptr.data) == src);
+  ASSERT_TRUE(ptr.cast<float>() == src);
   for (std::size_t i = 0; i < size; ++i)
   {
     ASSERT_FLOAT_EQ(temp[i].real(), 20.f);
     ASSERT_FLOAT_EQ(temp[i].imag(), 0.f);
   }
-
-  free(ptr.data);
+  ptr.deallocate();
 }
 
 TEST(hmmTest, CooleyTukey)
@@ -55,21 +55,17 @@ TEST(hmmTest, CooleyTukey)
 
   const std::size_t size = 4096;
   const float       N    = float(size);
-  ptr1.size              = size;
-  ptr1.data              = malloc(size * sizeof(std::complex<float>));
-  ptr2.size              = size;
-  ptr2.data              = malloc(size * sizeof(std::complex<float>));
+  ptr1.allocate<std::complex<float>>(size);
+  ptr2.allocate<std::complex<float>>(size);
+  std::complex<float> *ref = ptr1.cast<std::complex<float>>();
+  std::complex<float> *src = ptr2.cast<std::complex<float>>();
 
-  std::complex<float> *ref = (std::complex<float> *)ptr1.data;
-  std::complex<float> *src = (std::complex<float> *)ptr2.data;
   // Test 1: impulse response
   FFT_test::fill(ref, size, &FFT_test::impulse_response);
   FFT_test::fill(src, size, &FFT_test::impulse_response);
   ptr1 = pipeline_dft.execute(ptr1);
   ptr2 = pipeline_ct.execute(ptr2);
-  ref  = (std::complex<float> *)ptr1.data;
-  src  = (std::complex<float> *)ptr2.data;
-
+  ref  = ptr1.cast<std::complex<float>>();
   for (std::size_t i = 0; i < size; ++i)
     ASSERT_NEAR(std::abs(ref[i]) / N, std::abs(src[i]) / N, 1e-3);
 
@@ -78,8 +74,7 @@ TEST(hmmTest, CooleyTukey)
   FFT_test::fill(src, size, &FFT_test::complex_sinusoid);
   ptr1 = pipeline_dft.execute(ptr1);
   ptr2 = pipeline_ct.execute(ptr2);
-  ref  = (std::complex<float> *)ptr1.data;
-  src  = (std::complex<float> *)ptr2.data;
+  ref  = ptr1.cast<std::complex<float>>();
 
   for (std::size_t i = 0; i < size; ++i)
     ASSERT_NEAR(std::abs(ref[i]) / N, std::abs(src[i]) / N, 1e-3);
@@ -89,12 +84,11 @@ TEST(hmmTest, CooleyTukey)
   FFT_test::fill(src, size, &FFT_test::rectangle);
   ptr1 = pipeline_dft.execute(ptr1);
   ptr2 = pipeline_ct.execute(ptr2);
-  ref  = (std::complex<float> *)ptr1.data;
-  src  = (std::complex<float> *)ptr2.data;
+  ref  = ptr1.cast<std::complex<float>>();
 
   for (std::size_t i = 0; i < size; ++i)
     ASSERT_NEAR(std::abs(ref[i]) / N, std::abs(src[i]) / N, 1e-3);
 
-  free(ptr1.data);
-  free(ptr2.data);
+  ptr1.deallocate();
+  ptr2.deallocate();
 }

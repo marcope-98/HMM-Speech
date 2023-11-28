@@ -101,13 +101,8 @@ void hmm::Audio::plot() const
 void hmm::Audio::fft() const
 {
   Ptr ptr;
-  ptr.data     = malloc(this->d_samples * sizeof(float));
-  ptr.size     = this->d_samples;
-  ptr.capacity = this->d_samples * sizeof(float);
-
-  float *src = (float *)ptr.data;
-  for (std::size_t i = 0; i < this->d_samples; ++i)
-    src[i] = this->p_data[i];
+  ptr.allocate<float>(this->d_samples);
+  ptr.copy<float>(this->p_data, this->d_samples);
 
   const float Aw = Hann::correct(ptr.size) / float(ptr.size);
 
@@ -118,7 +113,7 @@ void hmm::Audio::fft() const
 
   // Prepare output
   const std::size_t half_spectrum = ptr.size / 2 + 1;
-  float *           magnitude     = (float *)ptr.data;
+  float *           magnitude     = ptr.cast<float>();
 
   const float delta = float(this->d_sampling_frequency) / float(ptr.size);
   float *     freq  = graphics::generate_axis(0.f, delta, half_spectrum);
@@ -134,7 +129,7 @@ void hmm::Audio::fft() const
 
   // clean up
   delete[] freq;
-  free(ptr.data);
+  ptr.deallocate();
 }
 
 void hmm::Audio::spectrogram() const
@@ -150,14 +145,12 @@ void hmm::Audio::spectrogram() const
 
   // main ptr of pipeline
   Ptr ptr;
-  ptr.size     = blocks * window_length;
-  ptr.capacity = ptr.size * sizeof(std::complex<float>); // make sure there's enough space for std::complex<float> data type (avoid reallocation)
-  ptr.data     = malloc(ptr.capacity);
+  ptr.allocate<std::complex<float>>(blocks * window_length);
 
   // copy overlapping data into ptr
   std::size_t stride = window_length * sizeof(std::complex<float>) / sizeof(float);
   float *     src    = this->p_data;
-  float *     dst    = (float *)ptr.data;
+  float *     dst    = ptr.cast<float>();
   for (std::size_t block = 0; block < blocks - 1; ++block)
   {
     for (std::size_t sample = 0; sample < window_length; ++sample)
@@ -188,7 +181,7 @@ void hmm::Audio::spectrogram() const
   const std::size_t half_spectrum = window_length / 2 + 1;
   float *           z             = new float[half_spectrum * blocks]();
   stride                          = window_length * sizeof(std::complex<float>) / sizeof(float);
-  src                             = (float *)ptr.data;
+  src                             = ptr.cast<float>();
   for (std::size_t block = 0; block < blocks; ++block)
   {
     z[block] = 20.f * log10f(Aw * src[0]);
@@ -200,7 +193,7 @@ void hmm::Audio::spectrogram() const
     src += stride;
   }
 
-  free(ptr.data);
+  ptr.deallocate();
 
   float delta;
   delta    = float(this->d_samples) / float(blocks * this->d_sampling_frequency);
