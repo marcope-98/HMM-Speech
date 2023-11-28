@@ -1,5 +1,5 @@
-#ifndef HMM_INTERNAL_DSP_HPP_
-#define HMM_INTERNAL_DSP_HPP_
+#ifndef HMM_AUDIO_DSP_HPP_
+#define HMM_AUDIO_DSP_HPP_
 
 #include <cstdint>
 #include <utility>
@@ -71,6 +71,18 @@ namespace hmm
     }
   };
 
+  struct Preemphesis
+  {
+    auto execute(Ptr p)
+    {
+      const std::size_t size = p.size;
+      float *           dst  = (float *)p.data;
+      for (std::size_t i = size - 1; i > 0; --i)
+        dst[i] -= 0.95f * dst[i - 1];
+      return p;
+    }
+  };
+
 } // namespace hmm
 
-#endif // HMM_INTERNAL_DSP_HPP_
+#endif // HMM_AUDIO_DSP_HPP_

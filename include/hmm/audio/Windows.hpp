@@ -1,5 +1,5 @@
-#ifndef HMM_INTERNAL_WINDOWS_HPP_
-#define HMM_INTERNAL_WINDOWS_HPP_
+#ifndef HMM_AUDIO_WINDOWS_HPP_
+#define HMM_AUDIO_WINDOWS_HPP_
 
 #define _USE_MATH_DEFINES
 #include <cmath>
@@ -257,4 +257,4 @@ namespace hmm
 
 } // namespace hmm
 
-#endif // HMM_INTERNAL_WINDOWS_HPP_
+#endif // HMM_AUDIO_WINDOWS_HPP_

@@ -12,12 +12,14 @@
 #endif
 #include "hmm/io/graphics.hpp"
 
+// hmm/audio
+#include "hmm/audio/DSP.hpp"
+#include "hmm/audio/FFT.hpp"
+#include "hmm/audio/Windows.hpp"
+
 // hmm/internal
-#include "hmm/internal/DSP.hpp"
-#include "hmm/internal/FFT.hpp"
 #include "hmm/internal/Pipeline.hpp"
 #include "hmm/internal/Ptr.hpp"
-#include "hmm/internal/Windows.hpp"
 
 hmm::Audio::Audio(const char *filename) : Audio()
 {
@@ -110,7 +112,7 @@ void hmm::Audio::fft() const
   const float Aw = Hann::correct(ptr.size) / float(ptr.size);
 
   // MeanRemover -> Hann -> ZeroPadding -> ToComplex -> CooleyTukey -> Magnitude
-  Pipeline<MeanRemover, Hann, ZeroPadding, ToComplex, CooleyTukey, Magnitude> pipeline;
+  Pipeline<Preemphesis, MeanRemover, Hann, ZeroPadding, ToComplex, CooleyTukey, Magnitude> pipeline;
   // Execute Pipeline
   ptr = pipeline.execute(ptr);
 

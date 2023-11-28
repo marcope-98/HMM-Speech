@@ -4,7 +4,7 @@
 #include <cmath>
 #include <cstdint>
 
-#include "hmm/internal/DSP.hpp"
+#include "hmm/audio/DSP.hpp"
 #include "hmm/internal/Pipeline.hpp"
 #include "hmm/internal/Ptr.hpp"
 

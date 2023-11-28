@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 
-#include "hmm/internal/Windows.hpp"
+#include "hmm/audio/Windows.hpp"
 
 TEST(hmmTest, amplitude_correction_factors)
 {

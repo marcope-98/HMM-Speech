@@ -2,7 +2,7 @@
 
 #include "FFT-test.hpp"
 
-#include "hmm/internal/FFT.hpp"
+#include "hmm/audio/FFT.hpp"
 #include "hmm/internal/Pipeline.hpp"
 #include "hmm/internal/Ptr.hpp"
 
