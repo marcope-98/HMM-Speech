@@ -2,5 +2,5 @@ build/
 data/train/
 data/test/
 resources/
-main.cpp
-devel.cpp
+/main.cpp
+/devel.cpp
