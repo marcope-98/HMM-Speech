@@ -1,8 +1,10 @@
 #ifndef HMM_IO_GRAPHICS_HPP_
 #define HMM_IO_GRAPHICS_HPP_
+
+#include <cstdint>
+
 #include <RInside.h>
 #include <Rcpp.h>
-#include <cmath> // TODO: remove this later
 
 namespace hmm
 {
@@ -22,12 +24,12 @@ namespace hmm
                      const char *x_label = "", const char *y_label = "")
     {
       Rcpp::Function      plot("plot");
-      Rcpp::NumericVector x_rcpp;
-      Rcpp::NumericVector y_rcpp;
+      Rcpp::NumericVector x_rcpp(size);
+      Rcpp::NumericVector y_rcpp(size);
       for (std::size_t i = 0; i < size; ++i)
       {
-        x_rcpp.push_back(x[i]);
-        y_rcpp.push_back(y[i]);
+        x_rcpp[i] = x[i];
+        y_rcpp[i] = y[i];
       }
       plot(
           Rcpp::Named("x")    = x_rcpp,
@@ -43,12 +45,12 @@ namespace hmm
     {
       Rcpp::Function      image("image");
       Rcpp::Function      hcl("hcl.colors");
-      Rcpp::NumericVector x_out;
-      Rcpp::NumericVector y_out;
+      Rcpp::NumericVector x_out(cols);
+      Rcpp::NumericVector y_out(rows);
       for (std::size_t i = 0; i < cols; ++i)
-        x_out.push_back(x[i]);
+        x_out[i] = x[i];
       for (std::size_t i = 0; i < rows; ++i)
-        y_out.push_back(y[i]);
+        y_out[i] = y[i];
       Rcpp::NumericMatrix z_out(cols, rows, z);
       image(Rcpp::Named("x")    = x_out,
             Rcpp::Named("y")    = y_out,
@@ -59,6 +61,17 @@ namespace hmm
                 Rcpp::Named("n")       = 100,
                 Rcpp::Named("palette") = "inferno",
                 Rcpp::Named("rev")     = false));
+    }
+
+    static float *generate_axis(float start, const float &increment, const std::size_t &size)
+    {
+      float *res = new float[size];
+      for (std::size_t i = 0; i < size; ++i)
+      {
+        res[i] = start;
+        start += increment;
+      }
+      return res;
     }
   };
 

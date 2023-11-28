@@ -2,7 +2,6 @@
 #define HMM_AUDIO_AUDIO_HPP_
 
 #include <cassert>
-#include <complex>
 #include <cstdint>
 #include <utility>
 
@@ -31,10 +30,9 @@ namespace hmm
       return this->p_data[channel + sample * this->d_channels];
     }
 
-    void preemphesis();
     void plot() const;
-    void fft_plot(float (*window)(const std::size_t &, const std::size_t &)) const;
-    void spectrogram(float (*window)(const std::size_t &, const std::size_t &)) const;
+    void fft_plot() const;
+    void spectrogram() const;
 
   private:
     void deallocate_all();
