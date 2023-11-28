@@ -31,9 +31,10 @@ target_compile_options(
     -Wall -Wextra -Wpedantic -O2 -march=native>
 )
 target_link_libraries(${LIBRARY_NAME}
+    PUBLIC
+    R::R
     PRIVATE
     Eigen3::Eigen
-    R::R
 )
 
 include(GNUInstallDirs)
@@ -82,7 +83,7 @@ export(
 )
 
 export(PACKAGE ${LIBRARY_NAME})
-add_executable(main main.cpp)
+add_executable(main devel.cpp)
 target_link_libraries(main hmm::hmm)
 
 enable_testing()

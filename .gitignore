@@ -3,3 +3,4 @@ data/train/
 data/test/
 resources/
 main.cpp
+devel.cpp
