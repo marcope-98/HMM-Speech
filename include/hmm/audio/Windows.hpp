@@ -4,6 +4,7 @@
 #define _USE_MATH_DEFINES
 #include <cmath>
 #include <cstdint>
+#include <iostream>
 
 #include "hmm/internal/Ptr.hpp"
 #include "hmm/internal/hmmintrin.hpp"
@@ -95,15 +96,10 @@ namespace hmm
     {
       float *     dst = (float *)p.data;
       const float arg = 2.f / float(p.size - 1);
-      for (std::size_t i = 0; i < p.size; ++i)
-      {
-        float temp = arg * float(i);
-        // TODO: is there a branchless version?
-        if (fops::cmple(temp, 1.f))
-          dst[i] *= arg;
-        else
-          dst[i] *= 2.f - arg;
-      }
+      for (std::size_t i = 0; i < (p.size - 1) / 2; ++i)
+        dst[i] *= arg * float(i);
+      for (std::size_t i = (p.size - 1) / 2; i < p.size; ++i)
+        dst[i] *= 2.f - arg * float(i);
       return p;
     }
 
@@ -111,14 +107,10 @@ namespace hmm
     {
       float       Aw  = 0.f;
       const float arg = 2.f / float(N - 1);
-      for (std::size_t i = 0; i < N; ++i)
-      {
-        float temp = arg * float(i);
-        if (fops::cmple(temp, 1.f))
-          Aw += arg;
-        else
-          Aw += 2.f - arg;
-      }
+      for (std::size_t i = 0; i < (N - 1) / 2; ++i)
+        Aw += arg * float(i);
+      for (std::size_t i = (N - 1) / 2; i < N; ++i)
+        Aw += 2.f - arg * float(i);
       return float(N) / Aw;
     }
   };
