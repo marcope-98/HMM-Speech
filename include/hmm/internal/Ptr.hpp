@@ -15,6 +15,7 @@ namespace hmm
     Ptr(const Ptr &other)     = default;
     Ptr(Ptr &&other) noexcept = default;
     ~Ptr()                    = default;
+
     Ptr &operator=(const Ptr &other) = default;
     Ptr &operator=(Ptr &&other) noexcept = default;
 
@@ -51,8 +52,8 @@ namespace hmm
     void copy(const T *const src, const std::size_t &size)
     {
       if (size * sizeof(T) > this->capacity) this->reallocate<T>(size);
-      if (size > this->size) this->size = size;
-      T *dst = this->cast<T>();
+      this->size = size > this->size ? size : this->size;
+      T *dst     = this->cast<T>();
       for (std::size_t i = 0; i < size; ++i)
         dst[i] = src[i];
     }

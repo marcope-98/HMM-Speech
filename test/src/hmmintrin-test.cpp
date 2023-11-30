@@ -9,7 +9,6 @@
 
 TEST(hmmTest, abs)
 {
-  // TODO: find a better test than just checking randomly
   std::mt19937                          gen(98);
   std::uniform_real_distribution<float> dis(-1000.f, +1000.f);
   for (std::size_t i = 0; i < 1000; ++i)

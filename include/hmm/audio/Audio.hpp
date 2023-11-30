@@ -22,6 +22,7 @@ namespace hmm
 
   public:
     std::size_t size() const { return this->d_samples * this->d_channels; }
+    std::size_t hz() const { return this->d_sampling_frequency; }
 
     float at(const std::size_t &sample, const std::size_t &channel) const
     {
@@ -32,7 +33,7 @@ namespace hmm
 
     void plot() const;
     void fft() const;
-    void spectrogram() const;
+    void spectrogram(const std::size_t &length) const;
 
   private:
     void deallocate_all();

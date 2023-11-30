@@ -23,19 +23,6 @@
 
 hmm::Audio::Audio(const char *filename) : Audio()
 {
-#if 0
-  this->d_channels           = 1;
-  this->d_sampling_frequency = 1000;
-  this->d_samples            = 1500;
-  this->p_data               = new float[this->d_samples];
-  const float dt             = 1.f / float(this->d_sampling_frequency);
-  float       t              = 0.f;
-  for (std::size_t i = 0; i < this->d_samples; ++i)
-  {
-    this->p_data[i] = 0.8f + 0.7f * sinf(2.f * M_PI * 50.f * t) + sinf(2.f * M_PI * 120.f * t);
-    t += dt;
-  }
-#else
   this->p_data = fpm_wav_load(filename,
                               &this->d_samples,
                               &this->d_channels,
@@ -45,7 +32,6 @@ hmm::Audio::Audio(const char *filename) : Audio()
     std::cerr << "[ERROR] could not read filename " << filename << "\n";
     exit(1);
   }
-#endif
 }
 
 hmm::Audio &hmm::Audio::operator=(const Audio &other)
@@ -132,78 +118,93 @@ void hmm::Audio::fft() const
   ptr.deallocate();
 }
 
-void hmm::Audio::spectrogram() const
+void hmm::Audio::spectrogram(const std::size_t &length) const
 {
-  const std::size_t window_length = 256;                                                            // NOTE: Length of each time block
-  const std::size_t overlap       = window_length / 2;                                              // NOTE: 50% overlap
-  const std::size_t Nfft          = utils::round_up_to_multiple_of(this->d_samples, window_length); // NOTE: Need to do this manually
-  const std::size_t blocks        = (Nfft / overlap) - 1;                                           // NOTE: this assumes 50% overlap
-  const float       Aw            = Hann::correct(window_length) / float(window_length);            // NOTE: Hann window amplitude correction factor
+  const std::size_t overlap = length / 2; // NOTE: we only support 50% overlap
+  /*
+    let 
+    n = this->d_samples
+    d = overlap
+    width = ceil(n / d)            - 1
+          = floor((n + d - 1) / d) - 1
+    since unsigned integer division rounds towards zero it is equivalent to floor
+  */
+  const std::size_t width  = ((this->d_samples + overlap - 1) / overlap) - 1;
+  const std::size_t height = utils::clp2(length);
 
-  // Initialize pipeline: Hann -> ToComplex -> FFT -> Magnitude
-  Pipeline<Hann, ToComplex, CooleyTukey, Magnitude> pipeline;
-
-  // main ptr of pipeline
+  // we basically allocate enough space to zero pad and convert to complex
   Ptr ptr;
-  ptr.allocate<std::complex<float>>(blocks * window_length);
+  ptr.allocate<std::complex<float>>(width * height);
 
   // copy overlapping data into ptr
-  std::size_t stride = window_length * sizeof(std::complex<float>) / sizeof(float);
+  std::size_t stride = height * sizeof(std::complex<float>) / sizeof(float); // to get next block
   float *     src    = this->p_data;
   float *     dst    = ptr.cast<float>();
-  for (std::size_t block = 0; block < blocks - 1; ++block)
+  for (std::size_t col = 0; col < width - 1; ++col)
   {
-    for (std::size_t sample = 0; sample < window_length; ++sample)
-      dst[sample] = src[sample];
+    for (std::size_t row = 0; row < height; ++row)
+      dst[row] = src[row];
     dst += stride;
     src += overlap;
   }
-  // handle special case where Nfft != this->d_samples
-  for (std::size_t sample = 0; sample < Nfft - this->d_samples; ++sample)
-    dst[sample] = src[sample];
-  for (std::size_t sample = Nfft - this->d_samples; sample < window_length; ++sample)
-    dst[sample] = 0.f;
+  // handle special case where this->d_samples % overlap != 0
+  // this extends the last block to reach the size of length specified as input
+  float *end1 = this->p_data + this->d_samples;
+  float *end2 = dst + length;
+  // clang-format off
+  while (src != end1) *dst++ = *src++;
+  while (dst != end2) *dst++ = 0.f;
+  // clang-format on
 
-  // Pipeline: create temporary Ptr for each block
-  Ptr temp;
-  temp.size                             = window_length;
-  temp.capacity                         = window_length * sizeof(std::complex<float>);
-  stride                                = window_length;
-  std::complex<float> *ptr_data_complex = (std::complex<float> *)ptr.data;
-  for (std::size_t block = 0; block < blocks; ++block)
+  Pipeline<ZeroPadding, Hamming, ToComplex, CooleyTukey, Magnitude> pipeline;
+  Ptr                                                               temp;
+  temp.capacity           = height * sizeof(std::complex<float>);
+  stride                  = height;
+  std::complex<float> *it = ptr.cast<std::complex<float>>();
+  for (std::size_t col = 0; col < width; ++col)
   {
-    temp.data = ptr_data_complex;
+    temp.data = it;
+    temp.size = length; // this will change every time so we need to reassign it at each iteration
     temp      = pipeline.execute(temp);
-    ptr_data_complex += stride;
+    it += stride;
   }
+  const float Aw = Hamming::correct(length) / float(length);
 
   // Graphics:
-  const std::size_t half_spectrum = window_length / 2 + 1;
-  float *           z             = new float[half_spectrum * blocks]();
-  stride                          = window_length * sizeof(std::complex<float>) / sizeof(float);
+  const std::size_t half_spectrum = height / 2 + 1;
+  float *           z             = new float[half_spectrum * width]();
+  stride                          = height * sizeof(std::complex<float>) / sizeof(float);
   src                             = ptr.cast<float>();
-  for (std::size_t block = 0; block < blocks; ++block)
+  for (std::size_t col = 0; col < width; ++col)
   {
-    z[block] = 20.f * log10f(Aw * src[0]);
+    z[col] = 20.f * log10f(Aw * src[0]);
     for (std::size_t i = 0; i < half_spectrum; ++i)
     {
-      std::size_t index_dst = i * blocks + block;
+      std::size_t index_dst = i * width + col;
       z[index_dst]          = 20.f * log10f(2.f * Aw * src[i]);
     }
     src += stride;
   }
 
+  // src = ptr.cast<float>();
+  // for (std::size_t col = 0; col < width; ++col)
+  // {
+  //   for (std::size_t i = 0; i < half_spectrum; ++i)
+  //     std::cout << src[i] << "\n";
+  //   src += stride;
+  // }
+
   ptr.deallocate();
 
   float delta;
-  delta    = float(this->d_samples) / float(blocks * this->d_sampling_frequency);
-  float *x = graphics::generate_axis(0.5f * delta, delta, blocks);
-  delta    = float(this->d_sampling_frequency) / float(window_length);
+  delta    = float(this->d_samples) / float(width * this->d_sampling_frequency);
+  float *x = graphics::generate_axis(0.5f * delta, delta, width);
+  delta    = float(this->d_sampling_frequency) / float(height);
   float *y = graphics::generate_axis(0.f, delta, half_spectrum);
 
   graphics::open_window();
   graphics::matrix(x, y, z,
-                   half_spectrum, blocks,
+                   half_spectrum, width,
                    "Time [Block #]", "Frequency [Hz]");
   graphics::wait();
   delete[] x;
